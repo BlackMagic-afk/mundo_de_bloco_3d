@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mundo de Blocos 3D</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#367c38">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#202020;color:white;font:14px Arial}
+#game{height:100dvh;position:relative;overflow:hidden;background:#91c9e9;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+button{background:#333c;color:white;border:1px solid #aaa;border-radius:5px;padding:9px;font-size:14px;touch-action:manipulation}
+#hud{position:absolute;inset:0;pointer-events:none;text-shadow:1px 1px 3px #222}
+#top{position:absolute;top:8px;left:9px;right:9px;display:flex;justify-content:space-between;font-size:12px}
+#cameraBtn{position:absolute;right:10px;top:38px;width:48px;height:48px;font-size:20px;pointer-events:auto}
+#speedBtn{position:absolute;right:10px;top:92px;width:48px;height:48px;padding:0;font-size:17px;font-weight:bold;pointer-events:auto}
+#speedBtn.active{background:#238b36;border:2px solid #b8ffbd}
+#cross{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:24px}
+#move{position:absolute;left:9px;bottom:65px;display:grid;grid-template-columns:repeat(3,52.5px);grid-template-rows:repeat(2,52.5px);gap:3px;pointer-events:auto}
+#move button{padding:2px;font-size:22.5px}
+#jump{position:absolute;right:12px;bottom:112px;pointer-events:auto}
+#bottom{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);display:flex;gap:5px;align-items:center;pointer-events:auto}
+#hotbar{display:flex;gap:3px}.slot{width:39px;height:41px;border:2px solid #888;background:#3339;display:flex;align-items:center;justify-content:center;position:relative;font-size:20px;border-radius:3px}.slot.selected{border:3px solid white}.count{position:absolute;right:2px;bottom:0;font-size:11px}
+#bag{width:41px;height:41px;padding:0;font-size:21px}
+#inventory,#start{position:absolute;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:5}
+#start{display:flex;flex-direction:column;gap:13px;text-align:center;z-index:20;background:linear-gradient(#000b,#000e)}
+#start button{background:#367c38;padding:13px 24px}
+#start .menuPanel{background:#333e;border:2px solid #aaa;border-radius:10px;padding:20px;width:min(92%,360px);max-height:85dvh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+#start .worldRow{display:flex;gap:8px;align-items:center}
+#start .worldRow button{padding:10px 8px}#start .worldRow .enterWorld{flex:1}#start .worldRow .editWorld{flex:0 0 48px;background:#555;padding:8px 4px}
+#start .secondary{background:#555}
+#exitWorld{position:absolute;left:10px;top:38px;pointer-events:auto;background:#8b3333;font-size:12px}
+.panel{background:#777;border:3px solid #aaa;padding:14px;width:min(92%,330px)}
+#invgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:12px 0}
+.invslot{height:57px;background:#333;border:2px solid #aaa;display:flex;align-items:center;justify-content:center;position:relative;font-size:22px}
+.invslot small{position:absolute;right:3px;bottom:2px;font-size:11px}
+#message{position:absolute;bottom:55px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px}
+#crafting{position:absolute;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:12;padding:10px}
+#craftPanel{background:#777;border:3px solid #bbb;padding:13px;width:min(96%,360px);color:white;text-align:center}
+#craftLayout{display:flex;gap:9px;align-items:flex-start;justify-content:center;flex-wrap:nowrap}
+#craftInventory{order:0;width:min(38vw,170px);min-width:112px;text-align:center;background:#555;border:2px solid #aaa;padding:6px}
+#craftInventoryGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:7px}
+#craftInventoryGrid .invslot{height:36px;font-size:16px;touch-action:manipulation}
+.craftslot.dragover,.invslot.dragover{border-color:#ffe66b;background:#666}
+#craftGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:min(54vw,169px);margin:12px auto;order:1}
+.craftslot{aspect-ratio:1;background:#343434;border:2px solid #aaa;display:flex;align-items:center;justify-content:center;font-size:19px}
+#craftResult{min-height:46px;font-size:25px;margin:8px}#craftActions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="game">
+<div id="hud">
+ <div id="top"><span id="coords">Mundo 30.000 × 30.000</span><span id="status">Inventário vazio</span></div>
+ <button id="exitWorld">💾 Salvar e sair</button><button id="cameraBtn">📷</button><button id="speedBtn" aria-pressed="false">2×</button><div id="cross">+</div>
+ <div id="move"><span></span><button data-m="forward">▲</button><span></span><button data-m="left">◀</button><button data-m="back">▼</button><button data-m="right">▶</button></div>
+ <button id="jump">⬆ Pular</button>
+ <div id="bottom"><div id="hotbar"></div><button id="bag">▦</button></div>
+ <div id="message">Arraste para olhar · Segure para minerar · Toque para construir</div>
+</div>
+<div id="inventory"><div class="panel"><b>INVENTÁRIO — 12 ESPAÇOS</b><div id="invgrid"></div><button id="close">Fechar</button></div></div>
+<div id="crafting"><div id="craftPanel"><b>MESA DE TRABALHO — 3×3</b><div id="craftLayout"><div id="craftInventory"><b>INVENTÁRIO</b><div id="craftInventoryGrid"></div></div><div><div id="craftGrid"></div></div></div><div>Resultado: <span id="craftResult">—</span></div><div id="craftActions"><button id="craftMake" disabled>Fabricar</button><button id="craftClose">Fechar</button></div><small id="craftHint">Arraste os gravetos do inventário para os espaços da mesa.</small></div></div>
+<div id="start">
+ <div class="menuPanel" id="homeMenu"><div style="font-size:42px">🌳 ⛏️</div><b style="font-size:23px">MUNDO DE BLOCOS 3D</b><span>30.000 × 30.000 blocos</span><button id="play">JOGAR</button></div>
+ <div class="menuPanel" id="worldMenu" style="display:none"><b style="font-size:21px">MEUS MUNDOS</b><span id="worldCount">0/10 mundos</span><div id="worldList"></div><button id="createWorld">＋ Criar mundo</button><button id="backHome" class="secondary">Voltar</button><div id="worldSettings" style="display:none;border-top:1px solid #aaa;padding-top:12px;gap:10px"><b id="settingsTitle">CONFIGURAÇÕES DO MUNDO</b><label for="worldNameInput">Nome do mundo</label><input id="worldNameInput" type="text" dir="ltr" inputmode="text" autocomplete="off" autocapitalize="sentences" maxlength="32" placeholder="Digite o nome do mundo" style="direction:ltr;unicode-bidi:normal;text-align:left;width:100%;box-sizing:border-box;padding:11px;border-radius:8px;border:1px solid #777;font-size:16px"><button id="saveWorldName">Salvar nome</button><button id="cloneWorld">📄 Clonar mundo</button><button id="deleteWorld" style="background:#8b3333">🗑 Excluir mundo</button><button id="closeWorldSettings" class="secondary">Voltar</button></div></div>
+</div>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const game=document.querySelector('#game'),scene=new THREE.Scene();
+scene.background=new THREE.Color(0x91c9e9);scene.fog=new THREE.Fog(0x91c9e9,35,75);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);
+const renderer=new THREE.WebGLRenderer({antialias:false});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;game.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x66764e,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(-10,20,10);scene.add(sun);
+
+function makeTexture(rgb,noise){const d=new Uint8Array(16*16*4);for(let i=0;i<256;i++){const n=(Math.random()-.5)*noise;for(let j=0;j<3;j++)d[i*4+j]=Math.max(0,Math.min(255,rgb[j]+n));d[i*4+3]=255}const t=new THREE.DataTexture(d,16,16);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.colorSpace=THREE.SRGBColorSpace;t.needsUpdate=true;return new THREE.MeshLambertMaterial({map:t})}
+const dirtMaterial=makeTexture([126,82,47],32);
+function makeHashTop(){const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.fillStyle='#8e5b32';x.fillRect(0,0,16,16);x.fillStyle='#b17a49';for(let y=0;y<16;y+=4)for(let z=0;z<16;z+=4)if(Math.random()>.5)x.fillRect(z,y,2,2);x.fillStyle='#2b2119';x.font='bold 13px monospace';x.textAlign='center';x.textBaseline='middle';x.fillText('#',8,8);const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshLambertMaterial({map:t})}
+function makePlankTexture(){const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.fillStyle='#9b693d';x.fillRect(0,0,16,16);for(let y=0;y<16;y+=4){x.fillStyle=y%8===0?'#b47c49':'#a16d40';x.fillRect(0,y,16,3);x.fillStyle='#694326';x.fillRect(0,y+3,16,1);x.fillStyle='#d09a61';x.fillRect(1,y+1,6,1);x.fillRect(10,y+2,5,1);x.fillStyle='#70482b';x.fillRect(1,y+1,1,1);x.fillRect(14,y+2,1,1)}const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshLambertMaterial({map:t})}
+const plankMaterial=makePlankTexture();
+const materials={grass:makeTexture([91,157,52],42),dirt:dirtMaterial,stone:makeTexture([120,120,120],35),bedrock:makeTexture([40,40,40],65),workbench:[dirtMaterial,dirtMaterial,makeHashTop(),dirtMaterial,dirtMaterial,dirtMaterial],wood:plankMaterial};
+const cube=new THREE.BoxGeometry(1,1,1),CHUNK=16,WORLD=30000,chunks=new Map();
+// Guarda alterações do jogador para que os chunks possam ser descarregados e recriados sem perder construções.
+const SAVE_KEY='mundo_blocos_3d_alteracoes_v1',WORLDS_KEY='mundo_blocos_3d_lista_mundos_v1';
+let worlds=[];let activeWorldId=null;let savedWorld={blocks:{},removedBushes:[],inventory:[],player:null,dirtTimers:{},workbenchGrid:Array(9).fill(false)};let removedBushSet=new Set();
+try{const raw=localStorage.getItem(WORLDS_KEY);if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed))worlds=parsed}}
+catch(e){console.warn('Não foi possível carregar a lista de mundos',e)}
+// Migra automaticamente o mundo salvo na versão anterior para o primeiro espaço.
+if(!worlds.length){try{const old=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(old&&old.blocks){worlds.push({id:'mundo-legado',name:'Mundo 1',data:{...old,inventory:[],player:null}});localStorage.setItem(WORLDS_KEY,JSON.stringify(worlds))}}catch(e){}}
+const blockKey=(x,y,z)=>`${x},${y},${z}`;
+function persistWorldList(){try{localStorage.setItem(WORLDS_KEY,JSON.stringify(worlds))}catch(e){message('Não foi possível salvar: armazenamento cheio!')}}
+function saveWorld(){if(!activeWorldId)return;try{savedWorld.removedBushes=[...removedBushSet];savedWorld.inventory=slots.map(v=>v?{type:v.type,count:v.count}:null);savedWorld.workbenchGrid=workbenchGrid.slice();savedWorld.player={x:player.x,y:player.y,z:player.z,yaw,pitch,cameraMode};const w=worlds.find(v=>v.id===activeWorldId);if(w)w.data=savedWorld;persistWorldList()}catch(e){console.warn('Não foi possível salvar o mundo',e);message('Não foi possível salvar: armazenamento cheio!')}}
+const player={x:15000,z:15000,y:0},radius=.30,height=1.8;
+const terrain=(x,z)=>Math.floor(4+Math.sin(x*.035)*1.2+Math.cos(z*.041)*1.3+Math.sin((x+z)*.019));
+
+function rebuild(c){for(const m of c.meshes)scene.remove(m);c.meshes=[];for(const type of ['grass','dirt','stone','bedrock','workbench','wood']){const arr=c.types[type],mesh=new THREE.InstancedMesh(cube,materials[type],arr.length),o=new THREE.Object3D();mesh.userData={positions:arr,type};arr.forEach((p,i)=>{o.position.set(...p);o.updateMatrix();mesh.setMatrixAt(i,o.matrix)});mesh.instanceMatrix.needsUpdate=true;mesh.frustumCulled=false;scene.add(mesh);c.meshes.push(mesh)}}
+const twigMaterial=new THREE.MeshLambertMaterial({color:0x80613b});
+const twigGeometry=new THREE.BoxGeometry(.12,.72,.12);
+function makeBush(x,y,z){const g=new THREE.Group();g.position.set(x,y+.35,z);for(let i=0;i<3;i++){const twig=new THREE.Mesh(twigGeometry,twigMaterial);twig.position.set((i-1)*.22, i===1?.08:0, (i%2?-.12:.12));twig.rotation.z=(i-1)*-.42;twig.rotation.x=(i-1)*.25;twig.userData={type:'bush',position:[x,y,z]};g.add(twig)}g.userData={type:'bushGroup',position:[x,y,z]};scene.add(g);return g}
+function bushChance(x,z){let n=(x*374761393+z*668265263)>>>0;n=(n^(n>>>13))*1274126177>>>0;return n%89===0}
+function makeChunk(cx,cz){const types={grass:[],dirt:[],stone:[],bedrock:[],workbench:[],wood:[]},bushes=[];for(let lx=0;lx<CHUNK;lx++)for(let lz=0;lz<CHUNK;lz++){const x=cx*CHUNK+lx,z=cz*CHUNK+lz;if(x<0||z<0||x>=WORLD||z>=WORLD)continue;const h=terrain(x,z);types.grass.push([x,h,z]);for(let d=1;d<=3;d++)types.dirt.push([x,h-d,z]);for(let y=h-4;y>=-23;y--)types.stone.push([x,y,z]);types.bedrock.push([x,-24,z]);if(bushChance(x,z)&&!removedBushSet.has(`${x},${z}`)&&Math.hypot(x-player.x,z-player.z)>3)bushes.push(makeBush(x,h+.5,z))}for(const [key,type] of Object.entries(savedWorld.blocks)){const [x,y,z]=key.split(',').map(Number);if(Math.floor(x/CHUNK)!==cx||Math.floor(z/CHUNK)!==cz)continue;for(const t of Object.keys(types)){const i=types[t].findIndex(p=>p[0]===x&&p[1]===y&&p[2]===z);if(i>=0)types[t].splice(i,1)}if(type&&types[type])types[type].push([x,y,z])}const c={types,meshes:[],bushes};rebuild(c);return c}
+function updateChunks(){const px=Math.floor(player.x/CHUNK),pz=Math.floor(player.z/CHUNK),needed=new Set();for(let x=px-1;x<=px+1;x++)for(let z=pz-1;z<=pz+1;z++){if(x<0||z<0||x*CHUNK>=WORLD||z*CHUNK>=WORLD)continue;const k=x+','+z;needed.add(k);if(!chunks.has(k))chunks.set(k,makeChunk(x,z))}for(const [k,c] of chunks)if(!needed.has(k)){c.meshes.forEach(m=>scene.remove(m));c.bushes.forEach(b=>scene.remove(b));chunks.delete(k)}}
+function hasBlock(bx,by,bz){const c=chunks.get(Math.floor(bx/CHUNK)+','+Math.floor(bz/CHUNK));return !!c&&['grass','dirt','stone','bedrock','workbench','wood'].some(t=>c.types[t].some(p=>p[0]===bx&&p[1]===by&&p[2]===bz))}
+function collides(x,feet,z){for(let bx=Math.floor(x-radius+.5);bx<=Math.floor(x+radius+.5);bx++)for(let bz=Math.floor(z-radius+.5);bz<=Math.floor(z+radius+.5);bz++)for(let by=Math.floor(feet+.5);by<=Math.floor(feet+height-.001+.5);by++)if(hasBlock(bx,by,bz)&&x+radius>bx-.5&&x-radius<bx+.5&&z+radius>bz-.5&&z-radius<bz+.5&&feet<by+.5&&feet+height>by-.5)return true;return false}
+function floorBelow(x,z,feet){let best=-100;for(let bx=Math.floor(x-radius+.5);bx<=Math.floor(x+radius+.5);bx++)for(let bz=Math.floor(z-radius+.5);bz<=Math.floor(z+radius+.5);bz++){const c=chunks.get(Math.floor(bx/CHUNK)+','+Math.floor(bz/CHUNK));if(!c)continue;for(const type of ['grass','dirt','stone','bedrock','workbench','wood'])for(const p of c.types[type]){const top=p[1]+.5;if(p[0]===bx&&p[2]===bz&&top<=feet+.06&&top>best&&x+radius>bx-.5&&x-radius<bx+.5&&z+radius>bz-.5&&z-radius<bz+.5)best=top}}return best}
+
+// Personagem branco em estilo voxel, com articulações e animação de caminhada.
+const avatar=new THREE.Group(),white=new THREE.MeshLambertMaterial({color:0xffffff});
+function cubePart(parent,w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),white);m.position.set(x,y,z);parent.add(m);return m}
+const torsoPivot=new THREE.Group();torsoPivot.position.set(0,1.4,0);avatar.add(torsoPivot);
+cubePart(torsoPivot,.6,.8,.3,0,0,0);
+const headPivot=new THREE.Group();headPivot.position.set(0,2.05,0);avatar.add(headPivot);
+cubePart(headPivot,.5,.5,.5,0,0,0);
+const leftArm=new THREE.Group();leftArm.position.set(-.38,1.77,0);avatar.add(leftArm);cubePart(leftArm,.22,.75,.22,0,-.375,0);
+const rightArm=new THREE.Group();rightArm.position.set(.38,1.77,0);avatar.add(rightArm);cubePart(rightArm,.22,.75,.22,0,-.375,0);
+const leftLeg=new THREE.Group();leftLeg.position.set(-.17,1.05,0);avatar.add(leftLeg);cubePart(leftLeg,.25,.8,.27,0,-.4,0);
+const rightLeg=new THREE.Group();rightLeg.position.set(.17,1.05,0);avatar.add(rightLeg);cubePart(rightLeg,.25,.8,.27,0,-.4,0);
+scene.add(avatar);
+let walkPhase=0;
+player.y=terrain(player.x,player.z)+.5;avatar.position.set(player.x,player.y,player.z);
+let yaw=0,pitch=0,cameraMode=2,vy=0,grounded=true,paused=true,started=false,speedBoost=false;
+const speedBtn=document.querySelector('#speedBtn');
+speedBtn.addEventListener('click',()=>{speedBoost=!speedBoost;speedBtn.classList.toggle('active',speedBoost);speedBtn.setAttribute('aria-pressed',String(speedBoost));document.querySelector('#message').textContent=speedBoost?'Velocidade 2× ativada':'Velocidade normal'});
+function updateCamera(){avatar.visible=cameraMode!==0;const cp=Math.cos(pitch),sp=Math.sin(pitch),fx=-Math.sin(yaw)*cp,fy=sp,fz=-Math.cos(yaw)*cp,eye=player.y+1.62;if(cameraMode===0){camera.position.set(player.x,eye,player.z);camera.lookAt(player.x+fx*10,eye+fy*10,player.z+fz*10)}else{const side=cameraMode===1?1:-1;camera.position.set(player.x+fx*5*side,eye+fy*5*side,player.z+fz*5*side);camera.lookAt(player.x,player.y+1.3,player.z)}}
+function changeCamera(e){e?.preventDefault();e?.stopPropagation();cameraMode=(cameraMode+1)%3;document.querySelector('#cameraBtn').textContent=['👁','◉','📷'][cameraMode];document.querySelector('#message').textContent=['Primeira pessoa','Segunda pessoa','Terceira pessoa'][cameraMode];updateCamera()}
+document.querySelector('#cameraBtn').addEventListener('pointerdown',changeCamera);
+function resize(){const w=game.clientWidth,h=game.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}new ResizeObserver(resize).observe(game);resize();updateChunks();updateCamera();
+
+const slots=Array(12).fill(null),icons={dirt:'🟫',grass:'🟩',stone:'⬜',stick:'🪵',workbench:'🛠️',wood:'🟫'};let selected=-1;let workbenchGrid=Array(9).fill(false);
+function refresh(){const bar=document.querySelector('#hotbar');bar.innerHTML='';for(let i=0;i<4;i++){const s=slots[i],e=document.createElement('div');e.className='slot'+(selected===i?' selected':'');if(s){e.textContent=icons[s.type];const n=document.createElement('span');n.className='count';n.textContent=s.count;e.append(n)}e.onclick=()=>{selected=selected===i?-1:i;refresh()};bar.append(e)}
+const grid=document.querySelector('#invgrid');grid.innerHTML='';slots.forEach((s,i)=>{const e=document.createElement('div');e.className='invslot';if(s){e.textContent=icons[s.type];const n=document.createElement('small');n.textContent=s.count;e.append(n)}e.onclick=()=>{if(selected>=0&&selected!==i){[slots[selected],slots[i]]=[slots[i],slots[selected]]}selected=i;refresh()};grid.append(e)});const total=slots.reduce((n,s)=>n+(s?s.count:0),0);document.querySelector('#status').textContent=total?'Itens: '+total:'Inventário vazio';if(document.querySelector('#crafting').style.display==='flex')renderCraftInventory()}
+function addItem(type,amount=1){let s=slots.find(v=>v&&v.type===type);if(s)s.count+=amount;else{const i=slots.findIndex(v=>v===null);if(i<0){message('Inventário cheio!');return}slots[i]={type,count:amount}}refresh()}
+function message(s){document.querySelector('#message').textContent=s}refresh();
+function tickDirtGrass(){if(!started||paused)return;const now=Date.now();savedWorld.dirtTimers ||= {};let changed=false;for(const c of chunks.values()){for(const type of ['dirt','grass']){const list=c.types[type];for(let i=list.length-1;i>=0;i--){const p=list[i],[x,y,z]=p,key=blockKey(x,y,z),covered=hasBlock(x,y+1,z);if(type==='dirt'&&covered){if(savedWorld.dirtTimers[key]){delete savedWorld.dirtTimers[key];changed=true}continue}if(type==='grass'&&!covered){if(savedWorld.dirtTimers[key]){delete savedWorld.dirtTimers[key];changed=true}continue}const since=savedWorld.dirtTimers[key]??(savedWorld.dirtTimers[key]=now);const delay=type==='dirt'?60000:30000;if(now-since>=delay){list.splice(i,1);(type==='dirt'?c.types.grass:c.types.dirt).push([x,y,z]);savedWorld.blocks[key]=type==='dirt'?'grass':'dirt';delete savedWorld.dirtTimers[key];changed=true}}}if(changed)rebuild(c)}if(changed){saveWorld();message('Um bloco mudou após ficar coberto ou exposto!')}}
+setInterval(tickDirtGrass,1000);
+
+function targetBlock(){const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(0,0),camera);const meshes=[];for(const c of chunks.values())meshes.push(...c.meshes,...c.bushes);const hits=ray.intersectObjects(meshes,true);return hits.length&&hits[0].distance<=6?hits[0]:null}
+// Textura de rachaduras aplicada sobre o bloco enquanto ele está sendo minerado.
+let crackOverlay=null,crackTexture=null;
+function makeCrackTexture(stage){const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,64,64);ctx.strokeStyle='rgba(20,16,12,.95)';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';const paths=[[[32,32],[25,23],[18,20],[13,10]],[[25,23],[29,14],[26,7]],[[18,20],[10,25],[5,23]],[[32,32],[40,27],[48,29],[57,21]],[[40,27],[42,17],[51,11]],[[32,32],[27,42],[18,48],[14,58]],[[27,42],[32,52],[29,60]],[[32,32],[41,39],[47,48],[57,52]],[[47,48],[45,57]],[[13,10],[8,7]],[[57,21],[61,17]]];const count=Math.max(2,Math.ceil(stage/10*paths.length));for(let i=0;i<count;i++){const a=paths[i];ctx.beginPath();ctx.moveTo(a[0][0],a[0][1]);for(let j=1;j<a.length;j++)ctx.lineTo(a[j][0],a[j][1]);ctx.stroke()}const tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;return tex}
+function showCracks(pos,stage){if(!crackOverlay){const mat=new THREE.MeshBasicMaterial({transparent:true,opacity:.95,depthWrite:false,side:THREE.DoubleSide});crackOverlay=new THREE.Mesh(new THREE.BoxGeometry(1.012,1.012,1.012),mat);crackOverlay.renderOrder=10;scene.add(crackOverlay)}if(crackTexture)crackTexture.dispose();crackTexture=makeCrackTexture(stage);crackOverlay.material.map=crackTexture;crackOverlay.material.needsUpdate=true;crackOverlay.position.set(pos[0],pos[1],pos[2]);crackOverlay.visible=true}
+function hideCracks(){if(crackOverlay)crackOverlay.visible=false;if(crackTexture){crackTexture.dispose();crackTexture=null}}
+function removeBlockAt(hit){const mesh=hit.object;if(mesh.userData.type==='bush'){const p=mesh.userData.position;if(!p)return;const c=chunks.get(Math.floor(p[0]/CHUNK)+','+Math.floor(p[2]/CHUNK)),i=c?.bushes.findIndex(b=>b.userData.position[0]===p[0]&&b.userData.position[2]===p[2]);if(!c||i<0)return;scene.remove(c.bushes[i]);c.bushes.splice(i,1);removedBushSet.add(`${p[0]},${p[2]}`);saveWorld();const amount=1+Math.floor(Math.random()*3);addItem('stick',amount);hideCracks();message(`Arbusto seco coletado: ${amount} graveto(s)!`);return}const p=mesh.userData.positions?.[hit.instanceId];if(!p)return;const type=mesh.userData.type;if(type==='bedrock'){message('Rocha-mãe: indestrutível!');return}const [x,y,z]=p,c=chunks.get(Math.floor(x/CHUNK)+','+Math.floor(z/CHUNK)),a=c.types[type],i=a.findIndex(v=>v[0]===x&&v[1]===y&&v[2]===z);if(i<0)return;a.splice(i,1);savedWorld.blocks[blockKey(x,y,z)]=null;
+// Arbustos apoiados neste bloco quebram automaticamente e deixam gravetos.
+const supported=c.bushes.filter(b=>{const bp=b.userData.position;return bp&&bp[0]===x&&bp[2]===z&&Math.abs(bp[1]-(y+.5))<.15});for(const b of supported){const bp=b.userData.position;scene.remove(b);const bi=c.bushes.indexOf(b);if(bi>=0)c.bushes.splice(bi,1);removedBushSet.add(`${bp[0]},${bp[2]}`);addItem('stick',1+Math.floor(Math.random()*3))}
+saveWorld();rebuild(c);hideCracks();if(type==='grass'||type==='dirt')addItem('dirt');else if(type==='stone'&&slots[selected]?.type==='stick')addItem('stone');else if(type==='workbench')addItem('workbench');else if(type==='wood')addItem('wood');message(type==='wood'?'Tábua de madeira coletada!':type==='stone'?(slots[selected]?.type==='stick'?'Pedra coletada!':'Pedra quebrada!'):'Bloco coletado!')}
+let craftTarget='',craftClicks=0;
+function tryCraftWorkbench(){
+ if(selected<0||slots[selected]?.type!=='stick')return false;
+ const hit=targetBlock();if(!hit?.face)return false;
+ const mesh=hit.object,type=mesh.userData.type,p=mesh.userData.positions?.[hit.instanceId];
+ const normal=hit.face.normal.clone().transformDirection(mesh.matrixWorld);
+ if(type!=='dirt'||!p||normal.y<.7){craftTarget='';craftClicks=0;return false}
+ const key=p.join(',');if(key!==craftTarget){craftTarget=key;craftClicks=0}
+ const stickCount=slots.reduce((n,v)=>n+(v?.type==='stick'?v.count:0),0);
+ if(stickCount<4){message(`Mesa de trabalho: faltam ${4-stickCount} graveto(s)!`);return true}
+ if(!slots.some(v=>v===null)&&!slots.some(v=>v?.type==='workbench')){message('Inventário cheio!');return true}
+ craftClicks++;message(`Criando mesa de trabalho: ${craftClicks}/4 toques`);
+ if(craftClicks>=4){let remaining=4;for(let i=0;i<slots.length&&remaining>0;i++){const v=slots[i];if(v?.type==='stick'){const take=Math.min(v.count,remaining);v.count-=take;remaining-=take;if(v.count<=0)slots[i]=null}}
+ const [cx,cy,cz]=p,chunk=chunks.get(Math.floor(cx/CHUNK)+','+Math.floor(cz/CHUNK));const di=chunk.types.dirt.findIndex(v=>v[0]===cx&&v[1]===cy&&v[2]===cz);if(di>=0){chunk.types.dirt.splice(di,1);savedWorld.blocks[blockKey(cx,cy,cz)]=null;rebuild(chunk)}addItem('workbench');craftClicks=0;craftTarget='';saveWorld();message('Mesa de trabalho criada! O bloco de terra foi usado.') }else saveWorld();refresh();return true;
+}
+function placeBlock(){if(paused||selected<0||!slots[selected]||!['dirt','grass','stone','workbench','wood'].includes(slots[selected].type))return;const hit=targetBlock();if(!hit?.face)return;const p=hit.object.userData.positions[hit.instanceId];if(!p)return;const n=hit.face.normal.clone().transformDirection(hit.object.matrixWorld),x=Math.round(p[0]+n.x),y=Math.round(p[1]+n.y),z=Math.round(p[2]+n.z);if(x<0||z<0||x>=WORLD||y<=-24||hasBlock(x,y,z))return;if(x+.5>player.x-radius&&x-.5<player.x+radius&&z+.5>player.z-radius&&z-.5<player.z+radius&&y+.5>player.y&&y-.5<player.y+height)return;const k=Math.floor(x/CHUNK)+','+Math.floor(z/CHUNK);let c=chunks.get(k);if(!c){c=makeChunk(Math.floor(x/CHUNK),Math.floor(z/CHUNK));chunks.set(k,c)}const item=slots[selected];c.types[item.type].push([x,y,z]);savedWorld.blocks[blockKey(x,y,z)]=item.type;saveWorld();if(--item.count<=0)slots[selected]=null;rebuild(c);refresh()}
+
+let draggedInventoryIndex=-1;
+function renderCraftInventory(){const box=document.querySelector('#craftInventoryGrid');if(!box)return;box.innerHTML='';slots.forEach((item,i)=>{const e=document.createElement('div');e.className='invslot';e.draggable=!!item;if(item){e.textContent=icons[item.type];const n=document.createElement('small');n.textContent=item.count;e.append(n)}e.addEventListener('dragstart',ev=>{if(!item){ev.preventDefault();return}draggedInventoryIndex=i;ev.dataTransfer.setData('text/plain',String(i))});e.addEventListener('click',()=>{if(item){draggedInventoryIndex=i;message(`Selecionado: ${icons[item.type]} — arraste para um espaço da mesa.`)}});box.append(e)})}
+function renderCraftGrid(){const grid=document.querySelector('#craftGrid');grid.innerHTML='';workbenchGrid.forEach((has,i)=>{const cell=document.createElement('div');cell.className='craftslot';cell.textContent=has?'🪵':'';cell.draggable=false;cell.addEventListener('dragover',ev=>{ev.preventDefault();cell.classList.add('dragover')});cell.addEventListener('dragleave',()=>cell.classList.remove('dragover'));cell.addEventListener('drop',ev=>{ev.preventDefault();cell.classList.remove('dragover');const idx=Number(ev.dataTransfer.getData('text/plain'));putStickInCraft(i,idx)});cell.addEventListener('click',()=>{if(draggedInventoryIndex>=0)putStickInCraft(i,draggedInventoryIndex)});grid.append(cell)});const ready=workbenchGrid.every(Boolean);document.querySelector('#craftMake').disabled=!ready;document.querySelector('#craftResult').textContent=ready?'🟫':'—';document.querySelector('#craftHint').textContent=ready?'Receita completa: 9 gravetos → 1 bloco de tábua de madeira':'Arraste 1 graveto para cada espaço (9 no total).';renderCraftInventory()}
+function putStickInCraft(cellIndex,inventoryIndex){if(workbenchGrid[cellIndex])return;const item=slots[inventoryIndex];if(!item||item.type!=='stick'||item.count<1){message('Arraste um graveto para este espaço.');return}item.count--;if(item.count<=0)slots[inventoryIndex]=null;workbenchGrid[cellIndex]=true;draggedInventoryIndex=-1;renderCraftGrid();refresh();saveWorld()}
+function openWorkbench(){workbenchGrid=(savedWorld.workbenchGrid||Array(9).fill(false)).slice(0,9);while(workbenchGrid.length<9)workbenchGrid.push(false);renderCraftGrid();document.querySelector('#crafting').style.display='flex';paused=true}
+document.querySelector('#craftClose').onclick=()=>{document.querySelector('#crafting').style.display='none';paused=false;saveWorld()};
+document.querySelector('#craftMake').onclick=()=>{if(!workbenchGrid.every(Boolean))return;if(!slots.some(v=>v===null)&&!slots.some(v=>v?.type==='wood')){message('Inventário cheio!');return}workbenchGrid=Array(9).fill(false);savedWorld.workbenchGrid=workbenchGrid;addItem('wood',1);saveWorld();renderCraftGrid();message('Você fabricou 1 bloco de tábua de madeira!')};
+function tryOpenWorkbench(){const hit=targetBlock();if(!hit)return false;const type=hit.object.userData.type;if(type!=='workbench')return false;openWorkbench();return true}
+document.querySelector('#jump').onclick=()=>{if(!paused&&grounded){vy=7;grounded=false}};
+document.querySelector('#bag').onclick=()=>{document.querySelector('#inventory').style.display='flex';paused=true};
+document.querySelector('#close').onclick=()=>{document.querySelector('#inventory').style.display='none';paused=false};
+const startScreen=document.querySelector('#start'),homeMenu=document.querySelector('#homeMenu'),worldMenu=document.querySelector('#worldMenu');
+function showWorldMenu(){homeMenu.style.display='none';worldMenu.style.display='flex';renderWorldList()}
+let editingWorldId=null;
+function closeWorldSettings(){editingWorldId=null;document.querySelector('#worldSettings').style.display='none';document.querySelector('#worldList').style.display='';document.querySelector('#createWorld').style.display='';document.querySelector('#backHome').style.display=''}
+function openWorldSettings(id){editingWorldId=id;const w=worlds.find(v=>v.id===id);if(!w)return;document.querySelector('#settingsTitle').textContent='CONFIGURAÇÕES — '+w.name;document.querySelector('#worldNameInput').value=w.name;document.querySelector('#worldList').style.display='none';document.querySelector('#createWorld').style.display='none';document.querySelector('#backHome').style.display='none';document.querySelector('#worldSettings').style.display='flex';document.querySelector('#cloneWorld').disabled=worlds.length>=10;document.querySelector('#cloneWorld').textContent=worlds.length>=10?'Limite de 10 mundos atingido':'📄 Clonar mundo'}
+function renderWorldList(){closeWorldSettings();const list=document.querySelector('#worldList');list.innerHTML='';document.querySelector('#worldCount').textContent=`${worlds.length}/10 mundos`;worlds.forEach((w)=>{const row=document.createElement('div');row.className='worldRow';const b=document.createElement('button');b.className='enterWorld';b.textContent=`🌎 ${w.name}`;b.onclick=()=>enterWorld(w.id);const edit=document.createElement('button');edit.className='editWorld';edit.textContent='⚙️';edit.title='Editar mundo';edit.setAttribute('aria-label','Editar '+w.name);edit.onclick=()=>openWorldSettings(w.id);row.append(b,edit);list.append(row)});document.querySelector('#createWorld').disabled=worlds.length>=10;document.querySelector('#createWorld').textContent=worlds.length>=10?'Limite de 10 mundos atingido':'＋ Criar mundo'}
+function enterWorld(id){const w=worlds.find(v=>v.id===id);if(!w)return;activeWorldId=id;savedWorld=w.data||{blocks:{},removedBushes:[],inventory:[],player:null};if(!savedWorld.blocks)savedWorld.blocks={};if(!savedWorld.dirtTimers)savedWorld.dirtTimers={};if(!savedWorld.workbenchGrid)savedWorld.workbenchGrid=Array(9).fill(false);removedBushSet=new Set(savedWorld.removedBushes||[]);for(const c of chunks.values()){c.meshes.forEach(m=>scene.remove(m));c.bushes.forEach(b=>scene.remove(b))}chunks.clear();const pos=savedWorld.player;player.x=pos?.x??15000;player.z=pos?.z??15000;player.y=pos?.y??terrain(player.x,player.z)+.5;yaw=pos?.yaw??0;pitch=pos?.pitch??0;cameraMode=pos?.cameraMode??2;document.querySelector('#cameraBtn').textContent=['👁','◉','📷'][cameraMode];slots.fill(null);(savedWorld.inventory||[]).forEach((v,i)=>{if(i<slots.length&&v)slots[i]={type:v.type,count:v.count}});selected=-1;workbenchGrid=(savedWorld.workbenchGrid||Array(9).fill(false)).slice(0,9);while(workbenchGrid.length<9)workbenchGrid.push(false);refresh();avatar.position.set(player.x,player.y,player.z);vy=0;grounded=true;updateChunks();updateCamera();started=true;paused=false;startScreen.style.display='none';message(`Entrou em ${w.name}`)}
+document.querySelector('#play').onclick=showWorldMenu;
+document.querySelector('#backHome').onclick=()=>{worldMenu.style.display='none';homeMenu.style.display='flex'};
+document.querySelector('#createWorld').onclick=()=>{if(worlds.length>=10)return;const n=worlds.length+1;const w={id:'world-'+Date.now()+'-'+Math.floor(Math.random()*10000),name:'Mundo '+n,data:{blocks:{},removedBushes:[],inventory:[],player:null}};worlds.push(w);persistWorldList();enterWorld(w.id)};
+document.querySelector('#closeWorldSettings').onclick=closeWorldSettings;
+document.querySelector('#saveWorldName').onclick=()=>{const w=worlds.find(v=>v.id===editingWorldId);if(!w)return;const field=document.querySelector('#worldNameInput');const name=field.value.trim();if(!name){field.focus();message('Digite um nome para o mundo.');return}w.name=name;persistWorldList();document.querySelector('#settingsTitle').textContent='CONFIGURAÇÕES — '+w.name;const list=document.querySelector('#worldList');list.innerHTML='';document.querySelector('#worldCount').textContent=`${worlds.length}/10 mundos`;worlds.forEach(v=>{const row=document.createElement('div');row.className='worldRow';const b=document.createElement('button');b.className='enterWorld';b.textContent=`🌎 ${v.name}`;b.onclick=()=>enterWorld(v.id);const edit=document.createElement('button');edit.className='editWorld';edit.textContent='⚙️';edit.title='Editar mundo';edit.onclick=()=>openWorldSettings(v.id);row.append(b,edit);list.append(row)});message('Nome do mundo alterado!')};
+// Mantém a digitação da esquerda para a direita e facilita limpar/substituir o texto no celular.
+const worldNameField=document.querySelector('#worldNameInput');worldNameField.addEventListener('focus',()=>{worldNameField.setAttribute('dir','ltr')});worldNameField.addEventListener('input',()=>{worldNameField.style.direction='ltr';worldNameField.style.textAlign='left'});
+document.querySelector('#cloneWorld').onclick=()=>{const source=worlds.find(v=>v.id===editingWorldId);if(!source||worlds.length>=10)return;const copy=JSON.parse(JSON.stringify(source));copy.id='world-'+Date.now()+'-'+Math.floor(Math.random()*100000);copy.name=source.name+' (cópia)';worlds.push(copy);persistWorldList();renderWorldList();message('Mundo clonado!')};
+document.querySelector('#deleteWorld').onclick=()=>{const w=worlds.find(v=>v.id===editingWorldId);if(!w)return;if(!confirm('Excluir '+w.name+' permanentemente? Esta ação não pode ser desfeita.'))return;worlds=worlds.filter(v=>v.id!==editingWorldId);persistWorldList();renderWorldList();message('Mundo excluído')};
+function exitToMenu(){if(!activeWorldId)return;saveWorld();started=false;paused=true;clearGesture();held.forward=held.back=held.left=held.right=false;for(const c of chunks.values()){c.meshes.forEach(m=>scene.remove(m));c.bushes.forEach(b=>scene.remove(b))}chunks.clear();activeWorldId=null;startScreen.style.display='flex';worldMenu.style.display='none';homeMenu.style.display='flex'}
+document.querySelector('#exitWorld').onclick=exitToMenu;
+const held={};document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['w','arrowup'].includes(k))held.forward=true;if(['s','arrowdown'].includes(k))held.back=true;if(['a','arrowleft'].includes(k))held.left=true;if(['d','arrowright'].includes(k))held.right=true;if(k===' '){e.preventDefault();document.querySelector('#jump').click()}if(k>='1'&&k<='4'){selected=+k-1;refresh()}if(k==='e')document.querySelector('#bag').click()});
+document.addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(['w','arrowup'].includes(k))held.forward=false;if(['s','arrowdown'].includes(k))held.back=false;if(['a','arrowleft'].includes(k))held.left=false;if(['d','arrowright'].includes(k))held.right=false});
+document.querySelectorAll('[data-m]').forEach(b=>{const k=b.dataset.m;b.addEventListener('pointerdown',e=>{e.preventDefault();held[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>held[k]=false))});
+
+let gesture=null,holdTimer=null,mineTimer=null,holding=false,moved=false,mineStarted=0,mineKey='';
+function clearGesture(){clearTimeout(holdTimer);clearInterval(mineTimer);hideCracks();gesture=null;holding=false;moved=false;mineStarted=0;mineKey=''}
+function mineTick(){if(!gesture||moved||paused)return;const hit=targetBlock();if(!hit){mineKey='';mineStarted=0;hideCracks();return}const mesh=hit.object,type=mesh.userData.type,pos=type==='bush'?mesh.userData.position:mesh.userData.positions?.[hit.instanceId];if(!pos)return;if(type==='bedrock'){hideCracks();message('Rocha-mãe: indestrutível!');return}const key=type+':'+pos.join(',');if(key!==mineKey){mineKey=key;mineStarted=performance.now()}const usingStick=slots[selected]?.type==='stick',duration=type==='bush'?0:(type==='stone'?(usingStick?2500:3000):1000),elapsed=performance.now()-mineStarted,stage=Math.min(10,Math.max(1,Math.ceil(elapsed/Math.max(1,duration)*10)));if(type!=='bush')showCracks(pos,stage);else hideCracks();if(type==='bush'||elapsed>=duration){clearInterval(mineTimer);removeBlockAt(hit);mineStarted=0;mineKey='';if(gesture&&!moved&&!paused)mineTimer=setInterval(mineTick,50)}}
+game.addEventListener('contextmenu',e=>e.preventDefault());
+game.addEventListener('pointerdown',e=>{if(e.target.closest('button')||e.target.closest('#bottom')||e.target.closest('#inventory')||e.target.closest('#crafting')||e.target.closest('#start'))return;if(paused||gesture||(e.pointerType==='mouse'&&e.button!==0))return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY};moved=false;holding=false;try{game.setPointerCapture(e.pointerId)}catch{}holdTimer=setTimeout(()=>{if(gesture&&!moved&&!paused){holding=true;mineStarted=0;mineKey='';mineTimer=setInterval(mineTick,50)}},350)});
+game.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId||paused)return;const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(Math.abs(dx)+Math.abs(dy)>4){if(!moved){moved=true;clearTimeout(holdTimer);clearInterval(mineTimer)}yaw-=dx*.007;pitch=Math.max(-Math.PI/2+.015,Math.min(Math.PI/2-.015,pitch-dy*.007));updateCamera()}gesture.x=e.clientX;gesture.y=e.clientY});
+game.addEventListener('pointerup',e=>{if(!gesture||gesture.id!==e.pointerId)return;if(!moved&&!holding&&!paused){if(!tryCraftWorkbench()&&!tryOpenWorkbench())placeBlock()}clearGesture()});game.addEventListener('pointercancel',clearGesture);
+
+let last=performance.now();
+function animate(){requestAnimationFrame(animate);const now=performance.now(),dt=Math.min((now-last)/1000,.035);last=now;if(started&&!paused){updateChunks();let f=(held.forward?1:0)-(held.back?1:0),s=(held.right?1:0)-(held.left?1:0),len=Math.hypot(f,s)||1;f/=len;s/=len;const fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw),dx=(fx*f+rx*s)*(speedBoost?10:5)*dt,dz=(fz*f+rz*s)*(speedBoost?10:5)*dt,nx=Math.max(1,Math.min(WORLD-2,player.x+dx)),nz=Math.max(1,Math.min(WORLD-2,player.z+dz));function moveAxis(tx,tz,axis){if(!collides(tx,player.y,tz)){player.x=tx;player.z=tz;return}if(grounded&&vy<=0){const stepFloor=floorBelow(tx,tz,player.y+1.06);if(stepFloor>player.y+.5&&stepFloor<=player.y+1.06&&!collides(tx,stepFloor,tz)){player.x=tx;player.z=tz;player.y=stepFloor;vy=0;grounded=true;return}}}moveAxis(nx,player.z,'x');moveAxis(player.x,nz,'z');const oldY=player.y;vy-=18*dt;let nextY=player.y+vy*dt;if(vy<=0){const floor=floorBelow(player.x,player.z,oldY+.04);if(floor>-50&&nextY<=floor){nextY=floor;vy=0;grounded=true}else grounded=false}else if(collides(player.x,nextY,player.z)){nextY=oldY;vy=0}else grounded=false;player.y=nextY;if(player.y< -35){player.y=terrain(player.x,player.z)+.5;vy=0}avatar.position.set(player.x,player.y,player.z);
+const moving=Math.min(1,Math.hypot(f,s));
+avatar.rotation.y=yaw;
+headPivot.rotation.x=pitch;
+torsoPivot.rotation.x=0;
+if(moving>.01&&grounded){walkPhase+=dt*10;const swing=Math.sin(walkPhase)*.65*moving;leftArm.rotation.x=swing;rightArm.rotation.x=-swing;leftLeg.rotation.x=-swing;rightLeg.rotation.x=swing;avatar.position.y=player.y+Math.abs(Math.sin(walkPhase*2))*.035*moving}
+else{leftArm.rotation.x=THREE.MathUtils.damp(leftArm.rotation.x,0,10,dt);rightArm.rotation.x=THREE.MathUtils.damp(rightArm.rotation.x,0,10,dt);leftLeg.rotation.x=THREE.MathUtils.damp(leftLeg.rotation.x,0,10,dt);rightLeg.rotation.x=THREE.MathUtils.damp(rightLeg.rotation.x,0,10,dt);avatar.position.y=player.y}
+updateCamera();document.querySelector('#coords').textContent=`X ${Math.floor(player.x)} · Z ${Math.floor(player.z)}`}renderer.render(scene,camera)}
+animate();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.error));}</script>
+</body>
+</html>
